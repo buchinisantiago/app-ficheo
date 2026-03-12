@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>App Ficheo - Control de Asistencia</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <!-- PWA Config -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<body>
+    <div id="app">
+        <header>
+            <h1>App Ficheo</h1>
+            <div id="current-time">00:00:00</div>
+        </header>
+
+        <main id="main-content">
+            <!-- Login View -->
+            <section id="login-section" class="card active">
+                <h2>Identificación</h2>
+                <div class="user-selector">
+                    <select id="employee-select">
+                        <option value="">Selecciona tu nombre</option>
+                    </select>
+                </div>
+                <div class="pin-input">
+                    <input type="password" id="pin-code" placeholder="PIN de 4 dígitos" maxlength="4"
+                        inputmode="numeric">
+                </div>
+                <button id="btn-login" class="btn primary">Ingresar</button>
+            </section>
+
+            <!-- Actions View -->
+            <section id="actions-section" class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 id="welcome-msg" style="margin: 0;">Hola, ...</h2>
+                    <button id="btn-change-pin"
+                        style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">⚙️</button>
+                </div>
+
+                <div class="action-buttons" style="margin-top: 20px;">
+                    <button id="btn-clock-in" class="btn clock-btn entry">
+                        <span class="icon">📥</span>
+                        INGRESAR
+                    </button>
+                    <button id="btn-clock-out" class="btn clock-btn exit">
+                        <span class="icon">📤</span>
+                        SALIR
+                    </button>
+                </div>
+            </section>
+
+            <!-- Camera View -->
+            <section id="camera-section" class="card">
+                <h2>Verificación Visual</h2>
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas" style="display:none;"></canvas>
+                </div>
+                <p class="camera-tip">Asegurate de que tu cara se vea bien</p>
+                <div class="camera-actions">
+                    <button id="btn-capture" class="btn primary">Tomar Foto y Confirmar</button>
+                    <button id="btn-cancel-camera" class="btn secondary">Cancelar</button>
+                </div>
+            </section>
+
+            <!-- Messages/Status -->
+            <div id="status-msg" class="status-hidden"></div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 App Ficheo - Control de Tiempo</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+</body>
+
+</html>

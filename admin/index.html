@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - App Ficheo</title>
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0;
+            color: #1e293b;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 8px;
+        }
+
+        .tab-btn.active {
+            background: #e2e8f0;
+            color: var(--primary);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            margin: 0;
+            color: #64748b;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+
+        .stat-card p {
+            margin: 10px 0 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Support for hiding sections */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        th,
+        td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        tr:hover {
+            background: #f8fafc;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-entrada {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-salida {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-tracking {
+            background: #e0e7ff;
+            color: #3730a3;
+            font-size: 0.65rem;
+        }
+
+        .badge-tracking_error {
+            background: #fef08a;
+            color: #854d0e;
+            font-size: 0.65rem;
+        }
+
+        .photo-thumbnail {
+            width: 50px;
+            height: 50px;
+            border-radius: 6px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Modal Styles */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 16px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        #map {
+            height: 35vh;
+            /* Altura responsiva para compartir con la foto */
+            min-height: 250px;
+            width: 100%;
+            border-radius: 12px;
+        }
+
+        .full-photo {
+            max-width: 100%;
+            max-height: 40vh;
+            /* Limitar el alto para dejar espacio al mapa */
+            object-fit: contain;
+            /* Mantener proporción sin deformar */
+            border-radius: 12px;
+            display: none;
+            /* Oculto por defecto hasta que JS lo muestre */
+        }
+
+        .close-modal {
+            align-self: flex-end;
+            cursor: pointer;
+            font-weight: 700;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Dashboard de Asistencia</h1>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="location.reload()"
+                    style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer;">Actualizar</button>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('historial')">🕒 Historial de Fichajes</button>
+            <button class="tab-btn" onclick="switchTab('empleados')">👥 Gestor de Empleados</button>
+            <button class="tab-btn" onclick="switchTab('alertas')">⚠️ Gestión de Alertas</button>
+        </div>
+
+        <!-- TAB: HISTORIAL -->
+        <div id="tab-historial" class="tab-content active">
+            <div style="display:flex; justify-content: flex-end; margin-bottom: 15px;">
+                <button id="btn-export"
+                    style="padding: 8px 16px; border: none; border-radius: 8px; background: #059669; color: white; cursor: pointer; font-weight: 600;">
+                    📥 Exportar CSV (Excel)
+                </button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card" style="background:#e0f2fe; border-color:#0284c7;">
+                    <h3>Trabajando Ahora</h3>
+                    <p id="active-workers">0</p>
+                    <small id="active-list"
+                        style="display:block; margin-top:5px; color:#475569; font-size:0.8rem;"></small>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Registros</h3>
+                    <p id="total-count">0</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Entradas Hoy</h3>
+                    <p id="today-entries">0</p>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Empleado</th>
+                        <th>Tipo</th>
+                        <th>Fecha y Hora</th>
+                        <th>Ubicación</th>
+                        <th>Foto</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+        </div> <!-- End Tab Historial -->
+
+        <!-- TAB: EMPLEADOS -->
+        <div id="tab-empleados" class="tab-content">
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>Directorio de Técnicos</h2>
+                <button onclick="nuevoEmpleado()"
+                    style="padding: 8px 16px; border: none; border-radius: 8px; background: var(--primary); color: white; cursor: pointer; font-weight: 600;">
+                    + Añadir Nuevo
+                </button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre / Técnico</th>
+                        <th>Rol</th>
+                        <th>Acciones Administrativas</th>
+                    </tr>
+                </thead>
+                <tbody id="empleados-body">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+        </div> <!-- End Tab Empleados -->
+
+        <!-- TAB: ALERTAS -->
+        <div id="tab-alertas" class="tab-content">
+            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2>Configuración de Horarios y Alertas</h2>
+                <button onclick="ejecutarMotorAlertas()"
+                    style="padding: 8px 16px; border: none; border-radius: 8px; background: #dc2626; color: white; cursor: pointer; font-weight: 600;">
+                    🔍 Forzar Chequeo de Alertas Ahora
+                </button>
+            </div>
+
+            <p style="margin-bottom: 15px; color: #475569;">Configura abajo el horario de entrada y salida esperado de
+                cada Técnico para Lunes a Viernes. El sistema generará una alerta si no fichan en el horario previsto.
+            </p>
+
+            <table style="margin-bottom: 40px;">
+                <thead>
+                    <tr>
+                        <th>Técnico</th>
+                        <th>Hora Entrada (HH:MM)</th>
+                        <th>Hora Salida (HH:MM)</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="horarios-body">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+
+            <h3>Registro de Alertas Disparadas Hoy</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Alerta #</th>
+                        <th>Técnico</th>
+                        <th>Tipo (Falta Entrada/Salida)</th>
+                        <th>Cant. Avisos Hoy (Max 3)</th>
+                    </tr>
+                </thead>
+                <tbody id="log-alertas-body">
+                    <!-- Log data -->
+                </tbody>
+            </table>
+        </div> <!-- End Tab Alertas -->
+    </div>
+
+    <!-- Modal for Details -->
+    <div id="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times; Cerrar</span>
+            <div id="map"></div>
+            <img id="full-photo" class="full-photo" src="" alt="Foto de fichaje">
+            <div id="modal-info"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map = null;
+        let marker = null;
+        let currentData = [];
+
+        // --- SISTEMA DE PESTAÑAS ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabId === 'empleados') loadEmpleados();
+            if (tabId === 'alertas') loadHorariosYAlertas();
+        }
+
+        // --- HISTORIAL SECTION ---
+        async function loadHistory() {
+            const res = await fetch('../api/get_fichajes');
+            currentData = await res.json();
+
+            const body = document.getElementById('history-body');
+            body.innerHTML = '';
+
+            let todayEntries = 0;
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            currentData.forEach(row => {
+                const isToday = row.fecha_hora.startsWith(todayStr);
+                if (isToday && row.tipo === 'entrada') todayEntries++;
+
+                let typeClass = row.tipo;
+                if (row.tipo === 'tracking') typeClass = 'tracking';
+                if (row.tipo === 'tracking_error') typeClass = 'tracking_error';
+
+                // Determinar fotito o badge
+                let photoHtml = '';
+                let mapButton = '';
+
+                if (row.tipo === 'tracking') {
+                    photoHtml = '<span style="font-size:0.8rem; color:#64748b;">📡 Fondo</span>';
+                    mapButton = `<button onclick="openMapOnly(${row.latitud}, ${row.longitud}, '${row.nombre}', '${row.tipo}')" style="cursor:pointer; border:1px solid #cbd5e1; background: #f8fafc; padding: 4px 8px; border-radius: 4px;">🗺️ Mapa</button>`;
+                } else if (row.tipo === 'tracking_error') {
+                    photoHtml = '<span style="font-size:0.8rem; color:#ef4444;">⚠️ Sin GPS</span>';
+                    mapButton = '<span style="color:#94a3b8; font-size:0.8rem;">No Data</span>';
+                } else {
+                    // foto_path es base64 data URI directo desde la DB
+                    const fotoSrc = row.foto_path && row.foto_path.startsWith('data:') ? row.foto_path : `../api/foto/${row.id}`;
+                    photoHtml = `<img src="${fotoSrc}" class="photo-thumbnail" onclick="openModal('${row.id}', ${row.latitud}, ${row.longitud}, '${row.nombre}', '${row.tipo}')">`;
+                    mapButton = `<button onclick="openModal('${row.id}', ${row.latitud}, ${row.longitud}, '${row.nombre}', '${row.tipo}')" style="cursor:pointer; border:1px solid #cbd5e1; background: #f8fafc; padding: 4px 8px; border-radius: 4px;">🗺️ Ver</button>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${row.nombre}</strong></td>
+                    <td><span class="badge badge-${typeClass}">${row.tipo.toUpperCase().replace('_', ' ')}</span></td>
+                    <td>${new Date(row.fecha_hora).toLocaleString()}</td>
+                    <td>${mapButton}</td>
+                    <td>${photoHtml}</td>
+                `;
+                body.appendChild(tr);
+            });
+
+            document.getElementById('total-count').textContent = currentData.length;
+            document.getElementById('today-entries').textContent = todayEntries;
+
+            // Load Active Workers count
+            cargarTrabajadoresActivos();
+        }
+
+        async function cargarTrabajadoresActivos() {
+            try {
+                const res = await fetch('../api/get_active_employees');
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('active-workers').textContent = data.activos;
+                    document.getElementById('active-list').textContent = data.activos > 0 ? "👉 " + data.lista.join(', ') : "Ninguno en turno";
+                }
+            } catch (e) { console.error('Error cargando activos'); }
+        }
+
+        // Export to CSV
+        document.getElementById('btn-export').addEventListener('click', () => {
+            if (currentData.length === 0) return alert('No hay datos para exportar');
+
+            const headers = ['Empleado', 'Tipo', 'Fecha', 'Hora', 'Latitud', 'Longitud'];
+            const rows = currentData.map(r => {
+                const dt = new Date(r.fecha_hora);
+                return [
+                    r.nombre,
+                    r.tipo.toUpperCase(),
+                    dt.toLocaleDateString(),
+                    dt.toLocaleTimeString(),
+                    r.latitud,
+                    r.longitud
+                ];
+            });
+
+            let csvContent = "data:text/csv;charset=utf-8,"
+                + headers.join(',') + "\n"
+                + rows.map(e => e.join(",")).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `asistencia_mensual_${new Date().getMonth() + 1}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        function openModal(fichajeId, lat, lng, name, type) {
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('full-photo').style.display = 'block';
+            // Buscar la foto base64 del row correspondiente
+            const row = currentData.find(r => String(r.id) === String(fichajeId));
+            const fotoSrc = (row && row.foto_path && row.foto_path.startsWith('data:')) ? row.foto_path : `../api/foto/${fichajeId}`;
+            document.getElementById('full-photo').src = fotoSrc;
+            document.getElementById('modal-info').innerHTML = `<strong>${name}</strong> - ${type.toUpperCase()}`;
+
+            if (!map) {
+                map = L.map('map').setView([lat, lng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            } else {
+                map.setView([lat, lng], 15);
+            }
+
+            if (marker) map.removeLayer(marker);
+            marker = L.marker([lat, lng]).addTo(map)
+                .bindPopup(`${name} - ${type.toUpperCase()}`)
+                .openPopup();
+
+            // Fix Leaflet sizing issue in modal
+            setTimeout(() => map.invalidateSize(), 100);
+        }
+
+        // Helper para abrir solo mapa sin foto (para los Tracking intermedios)
+        function openMapOnly(lat, lng, name, type) {
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('full-photo').style.display = 'none'; // ocultar foto
+            document.getElementById('modal-info').innerHTML = `<strong>${name}</strong> - ${type.toUpperCase()}`;
+
+            if (!map) {
+                map = L.map('map').setView([lat, lng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            } else {
+                map.setView([lat, lng], 15);
+            }
+
+            if (marker) map.removeLayer(marker);
+
+            // Usar un icono distinto para distinguir puntos de background
+            const trackIcon = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+
+            marker = L.marker([lat, lng], { icon: trackIcon }).addTo(map)
+                .bindPopup(`${name} - Punto de Rastreo`)
+                .openPopup();
+
+            setTimeout(() => map.invalidateSize(), 100);
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        // --- GESTOR DE EMPLEADOS SECTION ---
+        async function loadEmpleados() {
+            const res = await fetch('../api/admin_get_users');
+            const data = await res.json();
+            const body = document.getElementById('empleados-body');
+            body.innerHTML = '';
+
+            data.forEach(user => {
+                const tr = document.createElement('tr');
+                const isAdmin = user.rol === 'admin';
+
+                tr.innerHTML = `
+                    <td>${user.id}</td>
+                    <td><strong>${user.nombre}</strong></td>
+                    <td><span class="badge ${isAdmin ? 'badge-salida' : 'badge-entrada'}">${user.rol.toUpperCase()}</span></td>
+                    <td>
+                        <button onclick="editarEmpleado(${user.id}, '${user.nombre}')" style="cursor:pointer; border:1px solid #cbd5e1; background: #f8fafc; padding: 6px 10px; border-radius: 6px; margin-right: 5px;">✏️ Editar</button>
+                        ${!isAdmin ? `
+                            <button onclick="resetPinEmpleado(${user.id}, '${user.nombre}')" style="cursor:pointer; border:none; background: #e0e7ff; color: #4338ca; padding: 6px 10px; border-radius: 6px; margin-right: 5px;">🔑 Reset PIN (a 1234)</button>
+                            <button onclick="eliminarEmpleado(${user.id}, '${user.nombre}')" style="cursor:pointer; border:none; background: #fee2e2; color: #dc2626; padding: 6px 10px; border-radius: 6px;">🗑️ Eliminar</button>
+                        ` : ''}
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        async function nuevoEmpleado() {
+            const nombre = prompt("Ingresa el nombre del nuevo empleado/técnico:");
+            if (!nombre) return;
+
+            const res = await fetch('../api/admin_create_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre })
+            });
+            const data = await res.json();
+            alert(data.message || data.error);
+            if (data.success) loadEmpleados();
+        }
+
+        async function editarEmpleado(id, nombreActual) {
+            const nuevoNombre = prompt("Modificar nombre del empleado:", nombreActual);
+            if (!nuevoNombre || nuevoNombre === nombreActual) return;
+
+            const res = await fetch('../api/admin_update_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, nombre: nuevoNombre })
+            });
+            const data = await res.json();
+            if (data.success) loadEmpleados();
+        }
+
+        async function resetPinEmpleado(id, nombre) {
+            if (!confirm(`¿Estás seguro que deseas reiniciar la contraseña de ${nombre} a '1234'?`)) return;
+
+            const res = await fetch('../api/admin_update_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, nombre, action: 'reset_pin' })
+            });
+            const data = await res.json();
+            alert(data.message);
+        }
+
+        async function eliminarEmpleado(id, nombre) {
+            if (!confirm(`⚠️ ALERTA: ¿Eliminar a ${nombre} permanentemente?\n\nSi el usuario ya tiene fichajes, el sistema podría rechazar la eliminación para mantener el historial intacto. En ese caso simplemente EDITA su nombre a "inactivo".`)) return;
+
+            const res = await fetch('../api/admin_delete_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                loadEmpleados();
+            } else {
+                alert(data.error);
+            }
+        }
+
+        function ReproducirAlertaUI() {
+            // Vibra si el dispositivo lo permite y emite sonido
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+
+            // Un pequeño beep de html5 audio para llamar la atención en el escritorio
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(440, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.5);
+        }
+
+        // --- SISTEMA DE HORARIOS Y ALERTAS ---
+        async function loadHorariosYAlertas() {
+            const res = await fetch('../api/admin_get_users');
+            const data = await res.json();
+
+            const tbody = document.getElementById('horarios-body');
+            tbody.innerHTML = '';
+
+            data.forEach(user => {
+                if (user.rol === 'admin') return; // Saltamos admins
+
+                const tr = document.createElement('tr');
+                // Nota: Usamos hora_entrada_esperada y hora_salida_esperada si vienen del endpoint, o default.
+                tr.innerHTML = `
+                    <td><strong>${user.nombre}</strong></td>
+                    <td><input type="time" id="he-${user.id}" value="${user.hora_entrada_esperada || '09:00'}"></td>
+                    <td><input type="time" id="hs-${user.id}" value="${user.hora_salida_esperada || '18:00'}"></td>
+                    <td><button onclick="guardarHorario(${user.id})" style="padding:4px 8px; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">💾 Guardar</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Cargar Log de hoy
+            const resLogs = await fetch('../api/admin_get_alert_logs');
+            const logs = await resLogs.json();
+            const logTbody = document.getElementById('log-alertas-body');
+            logTbody.innerHTML = '';
+
+            let hayInfraccionNueva = false;
+
+            if (logs.length === 0) {
+                logTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b;">No hay infracciones hoy 🎉</td></tr>';
+            } else {
+                logs.forEach(l => {
+                    if (l.cantidad_enviada > 0) hayInfraccionNueva = true;
+
+                    const tr = document.createElement('tr');
+                    tr.style.background = '#fef2f2';
+                    tr.innerHTML = `
+                        <td>${l.id}</td>
+                        <td><strong>${l.nombre}</strong></td>
+                        <td style="color:#dc2626;">${l.tipo_alerta === 'falta_entrada' ? 'No Fichó Entrada' : 'No Fichó Salida'}</td>
+                        <td>${l.cantidad_enviada} / 3</td>
+                    `;
+                    logTbody.appendChild(tr);
+                });
+            }
+
+            if (hayInfraccionNueva) ReproducirAlertaUI();
+        }
+
+        async function guardarHorario(id) {
+            const he = document.getElementById(`he-${id}`).value;
+            const hs = document.getElementById(`hs-${id}`).value;
+
+            const res = await fetch('../api/admin_update_horarios', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, entrada: he, salida: hs })
+            });
+            const result = await res.json();
+            alert(result.success ? "Horario guardado." : "Error al guardar.");
+        }
+
+        async function ejecutarMotorAlertas() {
+            try {
+                const req = await fetch('../api/check_alerts');
+                const res = await req.json();
+
+                alert(`Revisión Completa.\nSe emitieron o actualizaron ${res.alertas_procesadas} alertas de infracción.`);
+                loadHorariosYAlertas();
+            } catch (e) {
+                alert("Error contactando al motor de alertas.");
+            }
+        }
+
+        // Init Pestaña Default
+        loadHistory();
+
+        // Ejecutar revisión silenciosa de alertas periódicamente (como un Cron)
+        setInterval(() => {
+            fetch('../api/check_alerts').then(r => r.json()).then(res => {
+                if (res.alertas_procesadas > 0) {
+                    console.log("Nuevas alertas disparadas en fondo.");
+                    if (document.getElementById('tab-alertas').classList.contains('active')) {
+                        loadHorariosYAlertas();
+                    } else {
+                        ReproducirAlertaUI(); // Llamar atención visual/sonora general
+                        alert("⚠️ ¡Nuevas Alertas de Fichaje detectadas!");
+                    }
+                }
+            });
+        }, 120000); // 2 minutos para testing, en prod sería cada 15/60 min
+
+    </script>
+</body>
+
+</html>
