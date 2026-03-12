@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         capture: document.getElementById('btn-capture'),
         cancelCamera: document.getElementById('btn-cancel-camera'),
         video: document.getElementById('video'),
+        canvas: document.getElementById('canvas'),
         statusMsg: document.getElementById('status-msg'),
         clock: document.getElementById('current-time'),
         welcome: document.getElementById('welcome-msg'),
