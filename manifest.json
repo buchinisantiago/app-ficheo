@@ -1,11 +1,11 @@
 {
-  "name": "App Ficheo",
+  "name": "Menendez - Control de Asistencia",
   "short_name": "Ficheo",
-  "description": "Control de Asistencia Biométrico y GPS",
+  "description": "Control de Asistencia - Menendez Ingeniería",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#3b82f6",
+  "background_color": "#0c2d5a",
+  "theme_color": "#0c2d5a",
   "icons": [
     {
       "src": "icons/icon-192.png",

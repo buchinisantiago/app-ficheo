@@ -4,20 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>App Ficheo - Control de Asistencia</title>
+    <title>Ficheo - Menendez Ingeniería</title>
     <link rel="stylesheet" href="css/style.css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
     <!-- PWA Config -->
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#3b82f6">
+    <meta name="theme-color" content="#0c2d5a">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
 <body>
     <div id="app">
         <header>
-            <h1>App Ficheo</h1>
+            <div class="logo-container">
+                <div class="logo-text">MENENDEZ</div>
+                <div class="logo-subtitle">Ingeniería en Estaciones de Servicio</div>
+                <div class="app-badge">⛽ Control de Asistencia</div>
+            </div>
             <div id="current-time">00:00:00</div>
         </header>
 
@@ -41,8 +45,7 @@
             <section id="actions-section" class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h2 id="welcome-msg" style="margin: 0;">Hola, ...</h2>
-                    <button id="btn-change-pin"
-                        style="background: none; border: none; font-size: 1.2rem; cursor: pointer;">⚙️</button>
+                    <button id="btn-change-pin" class="settings-btn">⚙️</button>
                 </div>
 
                 <div class="action-buttons" style="margin-top: 20px;">
@@ -76,7 +79,7 @@
         </main>
 
         <footer>
-            <p>&copy; 2026 App Ficheo - Control de Tiempo</p>
+            <p>&copy; 2026 <span class="company-name">Menendez Ingeniería</span> — Control de Asistencia</p>
         </footer>
     </div>
 

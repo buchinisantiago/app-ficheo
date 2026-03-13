@@ -4,23 +4,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Administración - App Ficheo</title>
+    <title>Panel Admin - Menendez Ficheo</title>
     <!-- Leaflet CSS for Maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #2563eb;
-            --bg: #f1f5f9;
+            --primary: #1a5ba5;
+            --primary-dark: #0c2d5a;
+            --primary-light: #4fa8d6;
+            --accent: #00b4d8;
+            --bg: #eef5fa;
             --card: #ffffff;
-            --border: #e2e8f0;
+            --border: #c5d8e8;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background: var(--bg);
+            background: linear-gradient(160deg, #d6eaf4 0%, #f0f7fc 40%, #ffffff 100%);
             margin: 0;
             padding: 20px;
+            min-height: 100vh;
         }
 
         .container {
@@ -37,7 +41,21 @@
 
         h1 {
             margin: 0;
-            color: #1e293b;
+            color: var(--primary-dark);
+        }
+
+        .admin-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .admin-brand-name {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
         }
 
         .tabs {
@@ -60,8 +78,8 @@
         }
 
         .tab-btn.active {
-            background: #e2e8f0;
-            color: var(--primary);
+            background: #d6eaf4;
+            color: var(--primary-dark);
         }
 
         .stats {
@@ -223,7 +241,10 @@
 <body>
     <div class="container">
         <header>
-            <h1>Dashboard de Asistencia</h1>
+            <div class="admin-brand">
+                <h1>Dashboard de Asistencia</h1>
+                <span class="admin-brand-name">Menendez Ingeniería</span>
+            </div>
             <div style="display: flex; gap: 10px;">
                 <button onclick="location.reload()"
                     style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer;">Actualizar</button>

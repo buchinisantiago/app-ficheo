@@ -1,14 +1,30 @@
+/* ============================================
+   MENENDEZ - App Ficheo
+   Paleta de colores corporativa
+   ============================================ */
+
 :root {
-    --primary: #2563eb;
-    --primary-dark: #1d4ed8;
-    --success: #22c55e;
-    --danger: #ef4444;
-    --bg: #f8fafc;
+    /* Menendez Brand Colors */
+    --brand-dark: #0c2d5a;
+    --brand-primary: #1a5ba5;
+    --brand-medium: #2d7bc4;
+    --brand-light: #4fa8d6;
+    --brand-accent: #00b4d8;
+    --brand-pale: #d6eaf4;
+    --brand-bg: #eef5fa;
+
+    /* Funcionales */
+    --success: #16a34a;
+    --success-light: #dcfce7;
+    --danger: #dc2626;
+    --danger-light: #fee2e2;
     --card-bg: #ffffff;
-    --text: #1e293b;
-    --text-light: #64748b;
+    --text: #0f1c30;
+    --text-light: #4a6580;
+    --border: #c5d8e8;
     --radius: 16px;
-    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow: 0 8px 32px rgba(12, 45, 90, 0.12), 0 2px 8px rgba(12, 45, 90, 0.06);
+    --shadow-sm: 0 2px 8px rgba(12, 45, 90, 0.08);
 }
 
 * {
@@ -19,13 +35,13 @@
 
 body {
     font-family: 'Inter', sans-serif;
-    background-color: var(--bg);
+    background: var(--brand-bg);
     color: var(--text);
     line-height: 1.5;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     justify-content: center;
-    background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
+    background: linear-gradient(160deg, var(--brand-pale) 0%, #f0f7fc 40%, #ffffff 100%);
 }
 
 #app {
@@ -34,36 +50,79 @@ body {
     display: flex;
     flex-direction: column;
     padding: 20px;
+    min-height: 100vh;
 }
 
+/* ---- HEADER / LOGO ---- */
 header {
     text-align: center;
-    padding: 20px 0 40px;
+    padding: 24px 0 36px;
 }
 
-header h1 {
+.logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.logo-container img {
+    height: 44px;
+    width: auto;
+    object-fit: contain;
+}
+
+.logo-text {
     font-weight: 800;
-    font-size: 2.5rem;
-    color: var(--primary);
-    letter-spacing: -1px;
+    font-size: 1.6rem;
+    color: var(--brand-dark);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+}
+
+.logo-subtitle {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--brand-primary);
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+}
+
+.app-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding: 4px 14px;
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand-primary));
+    color: white;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 #current-time {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--text-light);
-    margin-top: 5px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--brand-dark);
+    margin-top: 12px;
+    font-variant-numeric: tabular-nums;
 }
 
+/* ---- CARDS ---- */
 .card {
     background: var(--card-bg);
     border-radius: var(--radius);
-    padding: 30px;
+    padding: 28px;
     box-shadow: var(--shadow);
     display: none;
     flex-direction: column;
-    gap: 20px;
-    animation: slideIn 0.3s ease-out;
+    gap: 18px;
+    animation: slideIn 0.35s ease-out;
+    border: 1px solid rgba(26, 91, 165, 0.08);
 }
 
 .card.active {
@@ -71,111 +130,170 @@ header h1 {
 }
 
 @keyframes slideIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 h2 {
     text-align: center;
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 700;
+    color: var(--brand-dark);
 }
 
-/* Forms */
-.user-selector select, 
+/* ---- FORMULARIOS ---- */
+.user-selector select,
 .pin-input input {
     width: 100%;
-    padding: 15px;
-    border: 2px solid #e2e8f0;
+    padding: 14px 16px;
+    border: 2px solid var(--border);
     border-radius: 12px;
     font-size: 1rem;
     font-family: inherit;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.25s, box-shadow 0.25s;
+    background: #f8fbfe;
+    color: var(--text);
 }
 
-.user-selector select:focus, 
+.user-selector select:focus,
 .pin-input input:focus {
-    border-color: var(--primary);
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(26, 91, 165, 0.12);
+    background: #fff;
 }
 
-/* Buttons */
+/* ---- BOTONES ---- */
 .btn {
-    padding: 15px;
+    padding: 14px;
     border: none;
     border-radius: 12px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 100%);
+    pointer-events: none;
 }
 
 .btn.primary {
-    background-color: var(--primary);
+    background: linear-gradient(135deg, var(--brand-primary), var(--brand-medium));
     color: white;
+    box-shadow: 0 4px 12px rgba(26, 91, 165, 0.3);
+}
+
+.btn.primary:hover {
+    box-shadow: 0 6px 20px rgba(26, 91, 165, 0.4);
+    transform: translateY(-1px);
 }
 
 .btn.primary:active {
-    background-color: var(--primary-dark);
-    transform: scale(0.98);
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 8px rgba(26, 91, 165, 0.25);
 }
 
 .btn.secondary {
-    background-color: #f1f5f9;
-    color: var(--text);
+    background: var(--brand-pale);
+    color: var(--brand-dark);
+    border: 1px solid var(--border);
 }
 
+.btn.secondary:hover {
+    background: #c0d8ea;
+}
+
+/* ---- BOTONES DE FICHAR ---- */
 .clock-btn {
     height: 120px;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     flex: 1;
     flex-direction: column;
+    border-radius: 16px;
+    letter-spacing: 0.5px;
 }
 
 .clock-btn .icon {
     font-size: 2.5rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .clock-btn.entry {
-    background-color: var(--success);
+    background: linear-gradient(135deg, #16a34a, #22c55e);
     color: white;
+    box-shadow: 0 4px 16px rgba(22, 163, 74, 0.3);
+}
+
+.clock-btn.entry:hover {
+    box-shadow: 0 6px 24px rgba(22, 163, 74, 0.4);
+    transform: translateY(-2px);
+}
+
+.clock-btn.entry:active {
+    transform: translateY(0) scale(0.97);
 }
 
 .clock-btn.exit {
-    background-color: var(--danger);
+    background: linear-gradient(135deg, #dc2626, #ef4444);
     color: white;
+    box-shadow: 0 4px 16px rgba(220, 38, 38, 0.3);
+}
+
+.clock-btn.exit:hover {
+    box-shadow: 0 6px 24px rgba(220, 38, 38, 0.4);
+    transform: translateY(-2px);
+}
+
+.clock-btn.exit:active {
+    transform: translateY(0) scale(0.97);
 }
 
 .action-buttons {
     display: flex;
-    gap: 15px;
+    gap: 14px;
 }
 
-/* Camera */
+/* ---- CÁMARA ---- */
 .video-container {
     width: 100%;
     aspect-ratio: 4/3;
     background: #000;
-    border-radius: 12px;
+    border-radius: 14px;
     overflow: hidden;
     position: relative;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 #video {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transform: scaleX(-1); /* Mirror effect */
+    transform: scaleX(-1);
 }
 
 .camera-tip {
     text-align: center;
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     color: var(--text-light);
+    font-style: italic;
 }
 
 .camera-actions {
@@ -184,30 +302,73 @@ h2 {
     gap: 10px;
 }
 
-/* Status Message */
+/* ---- STATUS MESSAGE ---- */
 #status-msg {
     position: fixed;
     bottom: 80px;
     left: 20px;
     right: 20px;
-    padding: 15px;
-    border-radius: 10px;
+    padding: 14px 20px;
+    border-radius: 12px;
     text-align: center;
     font-weight: 600;
     z-index: 100;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    transition: all 0.3s;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(8px);
 }
 
-.status-hidden { opacity: 0; transform: translateY(100%); pointer-events: none; }
-.status-visible { opacity: 1; transform: translateY(0); }
-.status-success { background: var(--success); color: white; }
-.status-error { background: var(--danger); color: white; }
+.status-hidden {
+    opacity: 0;
+    transform: translateY(100%);
+    pointer-events: none;
+}
 
+.status-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.status-success {
+    background: linear-gradient(135deg, #16a34a, #22c55e);
+    color: white;
+}
+
+.status-error {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    color: white;
+}
+
+/* ---- FOOTER ---- */
 footer {
     margin-top: auto;
     text-align: center;
-    padding: 20px 0;
-    font-size: 0.8rem;
+    padding: 24px 0 16px;
+    font-size: 0.75rem;
     color: var(--text-light);
+}
+
+footer .company-name {
+    font-weight: 700;
+    color: var(--brand-dark);
+}
+
+/* ---- SETTINGS BUTTON ---- */
+.settings-btn {
+    background: var(--brand-pale);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.settings-btn:hover {
+    background: var(--brand-light);
+    color: white;
 }
