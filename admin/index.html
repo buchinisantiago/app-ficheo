@@ -259,7 +259,10 @@
 
         <!-- TAB: HISTORIAL -->
         <div id="tab-historial" class="tab-content active">
-            <div style="display:flex; justify-content: flex-end; margin-bottom: 15px;">
+            <div style="display:flex; justify-content: flex-end; margin-bottom: 15px; gap: 10px;">
+                <button onclick="abrirModalFichajeManual()" style="padding: 8px 16px; border: none; border-radius: 8px; background: var(--primary); color: white; cursor: pointer; font-weight: 600;">
+                    ➕ Registrar Fichaje Manual
+                </button>
                 <button id="btn-export"
                     style="padding: 8px 16px; border: none; border-radius: 8px; background: #059669; color: white; cursor: pointer; font-weight: 600;">
                     📥 Exportar CSV (Excel)
@@ -378,6 +381,41 @@
         </div>
     </div>
 
+    <!-- Modal for Manual Fichaje -->
+    <div id="modal-manual" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content" style="width: 400px; max-width: 90%;">
+            <span class="close-modal" onclick="cerrarModalFichajeManual()">&times; Cerrar</span>
+            <h3 style="margin-top: 0; color: var(--primary-dark);">Registrar Fichaje Manual</h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Empleado</label>
+                    <select id="manual-emp" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Tipo de Fichaje</label>
+                    <select id="manual-tipo" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                        <option value="entrada">Entrada</option>
+                        <option value="salida">Salida</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Fecha</label>
+                    <input type="date" id="manual-fecha" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Hora</label>
+                    <input type="time" id="manual-hora" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                </div>
+                
+                <button onclick="guardarFichajeManual()" style="padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px;">
+                    Guardar Fichaje
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let map = null;
@@ -427,9 +465,14 @@
                     mapButton = '<span style="color:#94a3b8; font-size:0.8rem;">No Data</span>';
                 } else {
                     // foto_path es base64 data URI directo desde la DB
-                    const fotoSrc = row.foto_path && row.foto_path.startsWith('data:') ? row.foto_path : `../api/foto/${row.id}`;
-                    photoHtml = `<img src="${fotoSrc}" class="photo-thumbnail" onclick="openModal('${row.id}', ${row.latitud}, ${row.longitud}, '${row.nombre}', '${row.tipo}')">`;
-                    mapButton = `<button onclick="openModal('${row.id}', ${row.latitud}, ${row.longitud}, '${row.nombre}', '${row.tipo}')" style="cursor:pointer; border:1px solid #cbd5e1; background: #f8fafc; padding: 4px 8px; border-radius: 4px;">🗺️ Ver</button>`;
+                    if (row.foto_path === 'admin_manual_entry') {
+                        photoHtml = '<span style="font-size:0.8rem; color:#1a5ba5; font-weight:bold;">✍️ Manual</span>';
+                        mapButton = '<span style="color:#94a3b8; font-size:0.8rem;">Sin Mapa</span>';
+                    } else {
+                        const fotoSrc = row.foto_path && row.foto_path.startsWith('data:') ? row.foto_path : `../api/foto/${row.id}`;
+                        photoHtml = `<img src="${fotoSrc}" class="photo-thumbnail" onclick="openModal('${row.id}', ${row.latitud}, ${row.longitud}, '${row.nombre}', '${row.tipo}')">`;
+                        mapButton = `<button onclick="openModal('${row.id}', ${row.latitud}, ${row.longitud}, '${row.nombre}', '${row.tipo}')" style="cursor:pointer; border:1px solid #cbd5e1; background: #f8fafc; padding: 4px 8px; border-radius: 4px;">🗺️ Ver</button>`;
+                    }
                 }
 
                 const tr = document.createElement('tr');
@@ -550,6 +593,69 @@
 
         function closeModal() {
             document.getElementById('modal').style.display = 'none';
+        }
+
+        // --- FICHAJE MANUAL ---
+        async function abrirModalFichajeManual() {
+            document.getElementById('modal-manual').style.display = 'flex';
+            
+            // Set today's date and time by default
+            const now = new Date();
+            // Format to local date avoiding timezone shift
+            const dateStr = [
+                now.getFullYear(),
+                String(now.getMonth() + 1).padStart(2, '0'),
+                String(now.getDate()).padStart(2, '0')
+            ].join('-');
+            
+            const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
+            document.getElementById('manual-fecha').value = dateStr;
+            document.getElementById('manual-hora').value = timeStr;
+
+            // Load employees if empty
+            const empSelect = document.getElementById('manual-emp');
+            if (empSelect.options.length === 0) {
+                const res = await fetch('../api/admin_get_users');
+                const users = await res.json();
+                users.forEach(u => {
+                    if(u.rol !== 'admin') {
+                        const opt = document.createElement('option');
+                        opt.value = u.id;
+                        opt.textContent = u.nombre;
+                        empSelect.appendChild(opt);
+                    }
+                });
+            }
+        }
+
+        function cerrarModalFichajeManual() {
+            document.getElementById('modal-manual').style.display = 'none';
+        }
+
+        async function guardarFichajeManual() {
+            const empId = document.getElementById('manual-emp').value;
+            const tipo = document.getElementById('manual-tipo').value;
+            const fecha = document.getElementById('manual-fecha').value;
+            const hora = document.getElementById('manual-hora').value;
+
+            if (!empId || !fecha || !hora) {
+                return alert("Faltan datos");
+            }
+
+            const res = await fetch('../api/admin_add_fichaje', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empleado_id: empId, tipo, fecha, hora })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert("Fichaje manual registrado con éxito.");
+                cerrarModalFichajeManual();
+                loadHistory(); // Reload table
+            } else {
+                alert("Error: " + data.error);
+            }
         }
 
         // --- GESTOR DE EMPLEADOS SECTION ---
