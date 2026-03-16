@@ -37,7 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMsg: document.getElementById('status-msg'),
         clock: document.getElementById('current-time'),
         welcome: document.getElementById('welcome-msg'),
-        btnChangePin: document.getElementById('btn-change-pin')
+        btnChangePin: document.getElementById('btn-change-pin'),
+        btnTrackManual: document.getElementById('btn-track-manual')
     };
 
     // Update Clock
@@ -201,12 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     showStatus(`¡${pendingAction.toUpperCase()} REGISTRADA!`, 'success');
                     stopCamera();
 
-                    // Manejo del tracking si es entrada o salida
-                    if (pendingAction === 'entrada') {
-                        startTracking(currentUser.id);
-                    } else if (pendingAction === 'salida') {
-                        stopTracking();
-                    }
+                    // El tracking automático fue eliminado
 
                     switchSection('actions');
                 } else {
@@ -220,31 +216,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { enableHighAccuracy: true });
     });
 
-    // Tracking Continuo (Punto a Punto)
-    function startTracking(empId) {
-        if (trackingInterval) clearInterval(trackingInterval);
-        console.log(`[Tracking] Iniciado para empleado: ${empId}, cada ${TRACKING_MS / 1000}s`);
+    // Manual Tracking
+    ui.btnTrackManual.addEventListener('click', () => {
+        ui.btnTrackManual.disabled = true;
+        const originalContent = ui.btnTrackManual.innerHTML;
+        ui.btnTrackManual.innerHTML = '<span class="icon">⌛</span> ENVIANDO...';
 
-        // Notificar al Service Worker (intento experimental de background)
-        if (navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ type: 'START_BACKGROUND_TRACKING' });
-        }
+        showStatus('Obteniendo ubicación...', 'success');
 
-        trackingInterval = setInterval(() => {
-            console.log('[Tracking] Intentando obtener ubicación...');
-            navigator.geolocation.getCurrentPosition(
-                (pos) => sendTrackingPoint(empId, pos.coords.latitude, pos.coords.longitude),
-                (err) => sendTrackingError(empId, err.message),
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        }, TRACKING_MS);
-    }
-
-    function stopTracking() {
-        if (trackingInterval) clearInterval(trackingInterval);
-        trackingInterval = null;
-        console.log('[Tracking] Detenido por fin de turno');
-    }
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const { latitude, longitude } = pos.coords;
+                await sendTrackingPoint(currentUser.id, latitude, longitude);
+                showStatus('Ubicación enviada correctamente', 'success');
+                ui.btnTrackManual.innerHTML = originalContent;
+                ui.btnTrackManual.disabled = false;
+            },
+            (err) => {
+                sendTrackingError(currentUser.id, err.message);
+                showStatus('Error GPS: No se pudo obtener la ubicación', 'error');
+                ui.btnTrackManual.innerHTML = originalContent;
+                ui.btnTrackManual.disabled = false;
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    });
 
     async function sendTrackingPoint(empId, lat, lng) {
         try {
