@@ -523,6 +523,58 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
 
+// ============================================
+// AUTO-CHECKOUT A LAS 23:59 (hora Arg)
+// ============================================
+let lastAutoCheckoutDate = null;
+
+setInterval(async () => {
+    const now = new Date();
+    const argTimeStr = now.toLocaleString("en-US", {timeZone: "America/Argentina/Buenos_Aires"});
+    const argTime = new Date(argTimeStr);
+    
+    // Ejecutar alrededor de las 23:58 o 23:59
+    if (argTime.getHours() === 23 && argTime.getMinutes() >= 55) {
+        const currentDateStr = argTime.toISOString().split('T')[0];
+        
+        // Evitar que corra múltiples veces el mismo día
+        if (lastAutoCheckoutDate !== currentDateStr) {
+            lastAutoCheckoutDate = currentDateStr;
+            
+            try {
+                // Formatear la hora de salida a las 16:00 del día en curso
+                const tzDateStr = argTime.getFullYear() + "-" + 
+                                  String(argTime.getMonth()+1).padStart(2,'0') + "-" + 
+                                  String(argTime.getDate()).padStart(2,'0');
+                const targetExitTime = `${tzDateStr} 16:00:00`;
+                
+                // La query busca todos los empleados que trabajaron hoy. 
+                // Se queda con la última accion. Si esa última accion es 'entrada'
+                // les inserta una 'salida' a las 16:00 hrs.
+                const query = `
+                    WITH LastActions AS (
+                        SELECT DISTINCT ON (empleado_id) empleado_id, tipo
+                        FROM fichajes
+                        WHERE DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = CURRENT_DATE
+                        ORDER BY empleado_id, fecha_hora DESC
+                    )
+                    INSERT INTO fichajes (empleado_id, tipo, fecha_hora, foto_path)
+                    SELECT empleado_id, 'salida', $1, '🤖 Cierre Automático (16:00)'
+                    FROM LastActions
+                    WHERE tipo = 'entrada'
+                `;
+                
+                const result = await pool.query(query, [targetExitTime]);
+                if (result.rowCount > 0) {
+                    console.log(`[Auto-Checkout] Procesadas ${result.rowCount} salidas automáticas a las 16:00 para el día ${tzDateStr}.`);
+                }
+            } catch (err) {
+                console.error("[Auto-Checkout] Error:", err.message);
+            }
+        }
+    }
+}, 60000); // Checkear cada minuto
+
 // Iniciar servidor
 app.listen(PORT, () => {
     console.log(`🚀 App Ficheo corriendo en http://localhost:${PORT}`);
