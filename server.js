@@ -150,13 +150,45 @@ app.get('/api/get_active_employees', async (req, res) => {
         result.rows.forEach(row => {
             if (row.tipo === 'entrada') {
                 activos++;
-                lista.push(row.nombre);
+                lista.push({ id: row.empleado_id, nombre: row.nombre });
             }
         });
 
         res.json({ success: true, activos, lista });
     } catch (err) {
         res.status(500).json({ success: false, error: 'Error de base de datos', activos: 0 });
+    }
+});
+
+// --- ADMIN REQUEST TRACKING ---
+app.post('/api/admin_request_tracking', async (req, res) => {
+    const { empleado_id } = req.body;
+    if (!empleado_id) return res.json({ success: false, error: 'Missing employee ID' });
+    
+    try {
+        await pool.query('INSERT INTO solicitudes_tracking (empleado_id, completada) VALUES ($1, false)', [empleado_id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
+// --- CHECK TRACKING REQUESTS (Polling front-end) ---
+app.post('/api/check_tracking_requests', async (req, res) => {
+    const { empleado_id } = req.body;
+    if (!empleado_id) return res.json({ success: false, error: 'Missing employee ID' });
+
+    try {
+        const result = await pool.query('SELECT id FROM solicitudes_tracking WHERE empleado_id = $1 AND completada = false LIMIT 1', [empleado_id]);
+        if (result.rows.length > 0) {
+            const reqId = result.rows[0].id;
+            await pool.query('UPDATE solicitudes_tracking SET completada = true WHERE id = $1', [reqId]);
+            res.json({ success: true, has_request: true });
+        } else {
+            res.json({ success: true, has_request: false });
+        }
+    } catch (err) {
+        res.json({ success: false, error: err.message });
     }
 });
 
@@ -234,6 +266,69 @@ async function procesarInfraccion(empId, fecha, tipo) {
     }
     return 0;
 }
+
+// --- ADMIN: ADD FICHAJE MANUAL ---
+app.post('/api/admin_add_fichaje', async (req, res) => {
+    const { empleado_id, tipo, fecha, hora } = req.body;
+
+    if (!empleado_id || !tipo || !fecha || !hora) {
+        return res.json({ success: false, error: 'Missing required data' });
+    }
+
+    try {
+        // Combinar fecha y hora usando la zona horaria local simulada o en UTC.
+        // Asume hora local para "fecha_hora" field en PostgreSQL (que suele ser timestamptz o timestamp)
+        const fechaHoraStr = `${fecha} ${hora}:00`;
+        const foto_path = '✍️ Manual';
+        await pool.query(
+            'INSERT INTO fichajes (empleado_id, tipo, fecha_hora, foto_path) VALUES ($1, $2, $3, $4)',
+            [empleado_id, tipo, fechaHoraStr, foto_path]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
+// --- ADMIN: UPDATE FICHAJE ---
+app.post('/api/admin_update_fichaje', async (req, res) => {
+    const { id, tipo, fecha_hora } = req.body;
+
+    if (!id || !tipo || !fecha_hora) {
+        return res.json({ success: false, error: 'Missing required data' });
+    }
+
+    try {
+        // Reemplazar la T por espacio si viene del input datetime-local
+        let dtStr = fecha_hora.replace('T', ' ');
+        if (dtStr.length === 16) dtStr += ':00'; // add seconds if missing
+
+        await pool.query(
+            'UPDATE fichajes SET tipo = $1, fecha_hora = $2 WHERE id = $3',
+            [tipo, dtStr, id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
+// --- ADMIN: DELETE FICHAJE ---
+app.post('/api/admin_delete_fichaje', async (req, res) => {
+    const { id } = req.body;
+
+    if (!id) {
+        return res.json({ success: false, error: 'Missing id' });
+    }
+
+    try {
+        await pool.query('DELETE FROM fichajes WHERE id = $1', [id]);
+        res.json({ success: true });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
 
 // --- ADMIN: GET USERS ---
 app.get('/api/admin_get_users', async (req, res) => {
