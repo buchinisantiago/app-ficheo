@@ -294,6 +294,7 @@
                         <th>Fecha y Hora</th>
                         <th>Ubicación</th>
                         <th>Foto</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="history-body">
@@ -416,6 +417,35 @@
         </div>
     </div>
 
+    <!-- Modal for Edit Fichaje -->
+    <div id="modal-edit" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content" style="width: 400px; max-width: 90%;">
+            <span class="close-modal" onclick="cerrarModalEditarFichaje()">&times; Cerrar</span>
+            <h3 style="margin-top: 0; color: var(--primary-dark);">Editar Registro</h3>
+            <input type="hidden" id="edit-id">
+            
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Tipo de Fichaje</label>
+                    <select id="edit-tipo" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                        <option value="entrada">Entrada</option>
+                        <option value="salida">Salida</option>
+                        <option value="tracking">Tracking (Fondo)</option>
+                        <option value="tracking_error">Error GPS</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Fecha y Hora</label>
+                    <input type="datetime-local" id="edit-fechahora" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                </div>
+                
+                <button onclick="guardarEdicionFichaje()" style="padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px;">
+                    Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let map = null;
@@ -482,6 +512,10 @@
                     <td>${new Date(row.fecha_hora).toLocaleString()}</td>
                     <td>${mapButton}</td>
                     <td>${photoHtml}</td>
+                    <td style="white-space: nowrap;">
+                        <button onclick="abrirModalEditarFichaje(${row.id}, '${row.tipo}', '${row.fecha_hora}')" style="cursor:pointer; border:1px solid #cbd5e1; background: #f8fafc; padding: 4px 8px; border-radius: 4px; margin-right: 5px;" title="Editar">✏️</button>
+                        <button onclick="eliminarFichaje(${row.id})" style="cursor:pointer; border:none; background: #fee2e2; color: #dc2626; padding: 4px 8px; border-radius: 4px;" title="Eliminar">🗑️</button>
+                    </td>
                 `;
                 body.appendChild(tr);
             });
@@ -655,6 +689,70 @@
                 loadHistory(); // Reload table
             } else {
                 alert("Error: " + data.error);
+            }
+        }
+
+        // --- EDITAR Y ELIMINAR FICHAJE ---
+        async function eliminarFichaje(id) {
+            if (!confirm(`¿Estás seguro que deseas ELIMINAR este registro de forma permanente?`)) return;
+
+            const res = await fetch('../api/admin_delete_fichaje', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                loadHistory(); // Reload table
+            } else {
+                alert("Error al eliminar: " + data.error);
+            }
+        }
+
+        function abrirModalEditarFichaje(id, tipoActual, fechaHoraActual) {
+            document.getElementById('modal-edit').style.display = 'flex';
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-tipo').value = tipoActual;
+            
+            // Format fechaHoraActual for datetime-local input (YYYY-MM-DDThh:mm)
+            const localDate = new Date(fechaHoraActual);
+            const pad = (n) => n.toString().padStart(2, '0');
+            const formatted = `${localDate.getFullYear()}-${pad(localDate.getMonth()+1)}-${pad(localDate.getDate())}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}`;
+            
+            document.getElementById('edit-fechahora').value = formatted;
+        }
+
+        function cerrarModalEditarFichaje() {
+            document.getElementById('modal-edit').style.display = 'none';
+        }
+
+        async function guardarEdicionFichaje() {
+            const id = document.getElementById('edit-id').value;
+            const tipo = document.getElementById('edit-tipo').value;
+            const fechahora_local = document.getElementById('edit-fechahora').value;
+
+            if (!id || !tipo || !fechahora_local) {
+                return alert("Faltan datos");
+            }
+            
+            // Convert to PostgreSQL string
+            const newDate = new Date(fechahora_local);
+            const pad = (n) => n.toString().padStart(2, '0');
+            const pgDateStr = `${newDate.getFullYear()}-${pad(newDate.getMonth()+1)}-${pad(newDate.getDate())} ${pad(newDate.getHours())}:${pad(newDate.getMinutes())}:00`;
+
+            const res = await fetch('../api/admin_update_fichaje', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, tipo, fecha_hora: pgDateStr })
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert("Fichaje actualizado exitosamente.");
+                cerrarModalEditarFichaje();
+                loadHistory(); // Reload table
+            } else {
+                alert("Error al actualizar: " + data.error);
             }
         }
 
