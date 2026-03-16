@@ -23,6 +23,16 @@ app.use(express.static(path.join(__dirname), {
     extensions: ['html']
 }));
 
+// Auto-crear tabla de tracking si no existe en producción
+pool.query(`
+    CREATE TABLE IF NOT EXISTS solicitudes_tracking (
+        id SERIAL PRIMARY KEY,
+        empleado_id INTEGER NOT NULL REFERENCES empleados(id),
+        fecha_solicitud TIMESTAMPTZ DEFAULT NOW(),
+        completada BOOLEAN DEFAULT FALSE
+    )
+`).catch(err => console.error("Error creating solicitudes tabl:", err));
+
 // ============================================
 // API ENDPOINTS
 // ============================================
