@@ -34,6 +34,14 @@ CREATE TABLE IF NOT EXISTS registro_alertas (
     UNIQUE(empleado_id, fecha, tipo_alerta)
 );
 
+-- 3b. Tabla de solicitudes de tracking
+CREATE TABLE IF NOT EXISTS solicitudes_tracking (
+    id SERIAL PRIMARY KEY,
+    empleado_id INTEGER NOT NULL REFERENCES empleados(id),
+    fecha_solicitud TIMESTAMPTZ DEFAULT NOW(),
+    completada BOOLEAN DEFAULT FALSE
+);
+
 -- 4. Índices para performance
 CREATE INDEX IF NOT EXISTS idx_fichajes_empleado ON fichajes(empleado_id);
 CREATE INDEX IF NOT EXISTS idx_fichajes_fecha ON fichajes(fecha_hora);

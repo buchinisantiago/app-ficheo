@@ -64,6 +64,14 @@ try {
         FOREIGN KEY (empleado_id) REFERENCES empleados(id)
     )");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS solicitudes_tracking (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        empleado_id INTEGER NOT NULL,
+        fecha_solicitud DATETIME DEFAULT CURRENT_TIMESTAMP,
+        completada INTEGER DEFAULT 0,
+        FOREIGN KEY (empleado_id) REFERENCES empleados(id)
+    )");
+
     // Seed a default employee if none exist
     $stmt = $pdo->query("SELECT COUNT(*) FROM empleados");
     if ($stmt->fetchColumn() == 0) {

@@ -22,7 +22,7 @@ try {
     foreach ($fichajes_hoy as $row) {
         if ($row['tipo'] === 'entrada') {
             $activos++;
-            $lista_activos[] = $row['nombre'];
+            $lista_activos[] = ['id' => $row['empleado_id'], 'nombre' => $row['nombre']];
         }
     }
 

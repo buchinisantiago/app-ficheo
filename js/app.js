@@ -91,6 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ui.welcome.textContent = `Hola, ${currentUser.nombre}`;
                 switchSection('actions');
                 showStatus('Ingreso correcto', 'success');
+                
+                // Iniciar polling de solicitudes de tracking si es empleado
+                startTrackingRequestsPolling();
             } else {
                 showStatus('PIN incorrecto', 'error');
             }
@@ -215,6 +218,47 @@ document.addEventListener('DOMContentLoaded', () => {
             showStatus('Error GPS: Por favor permite la ubicación', 'error');
         }, { enableHighAccuracy: true });
     });
+
+    // Tracking Continuo (Punto a Punto)
+    // El tracking automático de fondo fue eliminado temporalmente, 
+    // pero mantenemos el worker de solicitudes bajo demanda:
+    let solicitudesInterval = null;
+
+    function startTrackingRequestsPolling() {
+        if (solicitudesInterval) clearInterval(solicitudesInterval);
+        
+        solicitudesInterval = setInterval(async () => {
+            if (!currentUser) return;
+            try {
+                const res = await fetch('api/check_tracking_requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empleado_id: currentUser.id })
+                });
+                const data = await res.json();
+                
+                if (data.success && data.has_request) {
+                    console.log('¡Solicitud de tracking recibida desde el admin!');
+                    showStatus('El administrador solicitó tu ubicación. Enviando...', 'success');
+                    
+                    navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                            const { latitude, longitude } = pos.coords;
+                            await sendTrackingPoint(currentUser.id, latitude, longitude);
+                            showStatus('Ubicación requerida enviada.', 'success');
+                        },
+                        (err) => {
+                            sendTrackingError(currentUser.id, err.message);
+                            showStatus('Error GPS al intentar enviar ubicación solicitada.', 'error');
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                }
+            } catch (e) {
+                console.error("Error consultando solicitudes de tracking");
+            }
+        }, 15000); // Check every 15 seconds
+    }
 
     // Manual Tracking
     ui.btnTrackManual.addEventListener('click', () => {

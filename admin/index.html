@@ -533,9 +533,51 @@
                 const data = await res.json();
                 if (data.success) {
                     document.getElementById('active-workers').textContent = data.activos;
-                    document.getElementById('active-list').textContent = data.activos > 0 ? "👉 " + data.lista.join(', ') : "Ninguno en turno";
+                    
+                    const listContainer = document.getElementById('active-list');
+                    listContainer.innerHTML = '';
+                    
+                    if (data.activos > 0) {
+                        data.lista.forEach(emp => {
+                            const empDiv = document.createElement('div');
+                            empDiv.style.display = 'flex';
+                            empDiv.style.justifyContent = 'space-between';
+                            empDiv.style.alignItems = 'center';
+                            empDiv.style.marginBottom = '5px';
+                            empDiv.style.padding = '4px 0';
+                            empDiv.style.borderBottom = '1px solid #cbd5e1';
+                            
+                            empDiv.innerHTML = `
+                                <span>👉 ${emp.nombre}</span>
+                                <button onclick="solicitarUbicacion(${emp.id}, '${emp.nombre}')" style="background:var(--accent); color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer;" title="Solicitar Ubicación Ahora">
+                                    🗺️ Solicitar
+                                </button>
+                            `;
+                            listContainer.appendChild(empDiv);
+                        });
+                    } else {
+                        listContainer.textContent = "Ninguno en turno";
+                    }
                 }
             } catch (e) { console.error('Error cargando activos'); }
+        }
+
+        async function solicitarUbicacion(empId, empNombre) {
+            try {
+                const res = await fetch('../api/admin_request_tracking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empleado_id: empId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`¡Solicitud enviada a ${empNombre}!\n\nLa aplicación informará su ubicación cuando realice su chequeo automático en los próximos segundos.`);
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (e) {
+                alert("Error de conexión");
+            }
         }
 
         // Export to CSV
