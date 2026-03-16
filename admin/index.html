@@ -537,7 +537,7 @@
                     const listContainer = document.getElementById('active-list');
                     listContainer.innerHTML = '';
                     
-                    if (data.activos > 0) {
+                    if (data.activos > 0 && Array.isArray(data.lista)) {
                         data.lista.forEach(emp => {
                             const empDiv = document.createElement('div');
                             empDiv.style.display = 'flex';
@@ -547,16 +547,20 @@
                             empDiv.style.padding = '4px 0';
                             empDiv.style.borderBottom = '1px solid #cbd5e1';
                             
+                            // Prevent undefined names if the object structure was not what we expected
+                            const empName = emp.nombre || 'Desconocido';
+                            const empId = emp.id || 0;
+                            
                             empDiv.innerHTML = `
-                                <span>👉 ${emp.nombre}</span>
-                                <button onclick="solicitarUbicacion(${emp.id}, '${emp.nombre}')" style="background:var(--accent); color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer;" title="Solicitar Ubicación Ahora">
+                                <span style="font-size: 0.9rem;">👉 ${empName}</span>
+                                <button onclick="solicitarUbicacion(${empId}, '${empName}')" style="background:var(--accent); color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer;" title="Solicitar Ubicación Ahora">
                                     🗺️ Solicitar
                                 </button>
                             `;
                             listContainer.appendChild(empDiv);
                         });
                     } else {
-                        listContainer.textContent = "Ninguno en turno";
+                        listContainer.innerHTML = '<span style="color: #64748b; font-size: 0.85rem;">Ninguno en turno</span>';
                     }
                 }
             } catch (e) { console.error('Error cargando activos'); }
