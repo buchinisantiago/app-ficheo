@@ -251,6 +251,17 @@ h2 {
     transform: translateY(0) scale(0.97);
 }
 
+.clock-btn:active {
+    transform: scale(0.95);
+}
+
+.disabled-btn {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+    filter: grayscale(100%);
+    pointer-events: none;
+}
+
 .clock-btn.exit {
     background: linear-gradient(135deg, #dc2626, #ef4444);
     color: white;

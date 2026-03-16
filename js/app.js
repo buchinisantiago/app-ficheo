@@ -92,7 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 switchSection('actions');
                 showStatus('Ingreso correcto', 'success');
                 
-                // Iniciar polling de solicitudes de tracking si es empleado
+                // Setear botones según último estado e iniciar polling
+                await checkStatusAndToggleButtons();
                 startTrackingRequestsPolling();
             } else {
                 showStatus('PIN incorrecto', 'error');
@@ -137,6 +138,37 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Error de conexión");
         }
     });
+
+    // Check Employee Status to Toggle Buttons
+    async function checkStatusAndToggleButtons() {
+        if (!currentUser) return;
+        try {
+            const res = await fetch('api/get_employee_status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empleado_id: currentUser.id })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                if (data.last_action === 'entrada') {
+                    // Ya entró, no puede volver a entrar
+                    ui.clockIn.disabled = true;
+                    ui.clockIn.classList.add('disabled-btn');
+                    ui.clockOut.disabled = false;
+                    ui.clockOut.classList.remove('disabled-btn');
+                } else {
+                    // Salió o no tiene acción hoy, no puede salir
+                    ui.clockOut.disabled = true;
+                    ui.clockOut.classList.add('disabled-btn');
+                    ui.clockIn.disabled = false;
+                    ui.clockIn.classList.remove('disabled-btn');
+                }
+            }
+        } catch (e) {
+            console.error("Error al obtener estado del operario", e);
+        }
+    }
 
     async function startFichaje(action) {
         pendingAction = action;
@@ -202,12 +234,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
 
                 if (data.success) {
-                    showStatus(`¡${pendingAction.toUpperCase()} REGISTRADA!`, 'success');
+                    showStatus('Fichaje registrado con éxito!', 'success');
                     stopCamera();
-
-                    // El tracking automático fue eliminado
-
                     switchSection('actions');
+                    
+                    // Actualizar estado de los botones (deshabilita el que se acaba de usar)
+                    await checkStatusAndToggleButtons();
                 } else {
                     showStatus('Error al guardar registro', 'error');
                 }

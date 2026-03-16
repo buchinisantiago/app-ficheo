@@ -170,6 +170,29 @@ app.get('/api/get_active_employees', async (req, res) => {
     }
 });
 
+// --- GET EMPLOYEE STATUS (Averiguar si el último fichaje de hoy es entrada o salida) ---
+app.post('/api/get_employee_status', async (req, res) => {
+    const { empleado_id } = req.body;
+    if (!empleado_id) return res.json({ success: false, error: 'Missing employee ID' });
+
+    try {
+        const result = await pool.query(`
+            SELECT tipo FROM fichajes 
+            WHERE empleado_id = $1 AND tipo IN ('entrada', 'salida')
+            AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = CURRENT_DATE
+            ORDER BY fecha_hora DESC LIMIT 1
+        `, [empleado_id]);
+        
+        if (result.rows.length > 0) {
+            res.json({ success: true, last_action: result.rows[0].tipo });
+        } else {
+            res.json({ success: true, last_action: null });
+        }
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
 // --- ADMIN REQUEST TRACKING ---
 app.post('/api/admin_request_tracking', async (req, res) => {
     const { empleado_id } = req.body;
