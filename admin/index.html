@@ -5,9 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin - Menendez Ficheo</title>
-    <!-- Leaflet CSS for Maps -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #1a5ba5;
@@ -263,9 +264,9 @@
                 <button onclick="abrirModalFichajeManual()" style="padding: 8px 16px; border: none; border-radius: 8px; background: var(--primary); color: white; cursor: pointer; font-weight: 600;">
                     ➕ Registrar Fichaje Manual
                 </button>
-                <button id="btn-export"
+                <button onclick="abrirModalExportar()" id="btn-export"
                     style="padding: 8px 16px; border: none; border-radius: 8px; background: #059669; color: white; cursor: pointer; font-weight: 600;">
-                    📥 Exportar CSV (Excel)
+                    📊 Exportar Reporte (Excel)
                 </button>
             </div>
 
@@ -446,6 +447,30 @@
         </div>
     </div>
 
+    <!-- Modal for Excel Export -->
+    <div id="modal-export" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content" style="width: 400px; max-width: 90%;">
+            <span class="close-modal" onclick="cerrarModalExportar()">&times; Cerrar</span>
+            <h3 style="margin-top: 0; color: var(--primary-dark);">Exportar Reporte Mensual</h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <p style="margin:0; font-size:0.9rem; color:#475569;">Selecciona el rango de fechas para generar el reporte de historial y horas trabajadas.</p>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Fecha Desde</label>
+                    <input type="date" id="export-desde" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                </div>
+                <div>
+                    <label style="font-weight: 600; display: block; margin-bottom: 5px;">Fecha Hasta</label>
+                    <input type="date" id="export-hasta" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                </div>
+                
+                <button onclick="generarExcel()" style="padding: 12px; background: #059669; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px;">
+                    Generar y Descargar Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         let map = null;
@@ -584,35 +609,119 @@
             }
         }
 
-        // Export to CSV
-        document.getElementById('btn-export').addEventListener('click', () => {
-            if (currentData.length === 0) return alert('No hay datos para exportar');
+        // --- EXPORTAR EXCEL ---
+        function abrirModalExportar() {
+            document.getElementById('modal-export').style.display = 'flex';
+            
+            // Sugerir mes actual por defecto
+            const date = new Date();
+            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+            const pad = (n) => n.toString().padStart(2, '0');
+            
+            document.getElementById('export-desde').value = `${firstDay.getFullYear()}-${pad(firstDay.getMonth()+1)}-01`;
+            document.getElementById('export-hasta').value = `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+        }
 
-            const headers = ['Empleado', 'Tipo', 'Fecha', 'Hora', 'Latitud', 'Longitud'];
-            const rows = currentData.map(r => {
-                const dt = new Date(r.fecha_hora);
-                return [
-                    r.nombre,
-                    r.tipo.toUpperCase(),
-                    dt.toLocaleDateString(),
-                    dt.toLocaleTimeString(),
-                    r.latitud,
-                    r.longitud
-                ];
+        function cerrarModalExportar() {
+            document.getElementById('modal-export').style.display = 'none';
+        }
+
+        function generarExcel() {
+            if (currentData.length === 0) return alert('No hay datos en el historial para exportar.');
+
+            const desdeStr = document.getElementById('export-desde').value;
+            const hastaStr = document.getElementById('export-hasta').value;
+
+            if (!desdeStr || !hastaStr) return alert("Por favor selecciona ambas fechas.");
+
+            const dateDesde = new Date(desdeStr + "T00:00:00");
+            const dateHasta = new Date(hastaStr + "T23:59:59");
+
+            // 1. Filtrar Data por rango de fechas
+            const dataFiltrada = currentData.filter(r => {
+                const rowDate = new Date(r.fecha_hora);
+                return rowDate >= dateDesde && rowDate <= dateHasta;
             });
 
-            let csvContent = "data:text/csv;charset=utf-8,"
-                + headers.join(',') + "\n"
-                + rows.map(e => e.join(",")).join("\n");
+            if (dataFiltrada.length === 0) {
+                alert("No hay registros en ese rango de fechas.");
+                return;
+            }
 
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `asistencia_mensual_${new Date().getMonth() + 1}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
+            // ==========================================
+            // HOJA 1: Historial Crudo
+            // ==========================================
+            const historialRows = dataFiltrada.map(r => {
+                const dt = new Date(r.fecha_hora);
+                return {
+                    "Empleado": r.nombre,
+                    "Tipo": r.tipo.toUpperCase(),
+                    "Fecha": dt.toLocaleDateString(),
+                    "Hora": dt.toLocaleTimeString(),
+                    "Latitud": r.latitud || '',
+                    "Longitud": r.longitud || ''
+                };
+            });
+
+            const wsHistorial = XLSX.utils.json_to_sheet(historialRows);
+
+            // ==========================================
+            // HOJA 2: Resumen Horas Trabajadas
+            // ==========================================
+            // Agrupar por Empleado
+            const empStats = {}; 
+            
+            // Ordenar por empleado y luego por fecha ascendente
+            const dataOrdenada = [...dataFiltrada]
+                .filter(r => r.tipo === 'entrada' || r.tipo === 'salida')
+                .sort((a, b) => {
+                    if (a.empleado_id === b.empleado_id) {
+                        return new Date(a.fecha_hora) - new Date(b.fecha_hora);
+                    }
+                    return a.empleado_id - b.empleado_id;
+                });
+
+            dataOrdenada.forEach(row => {
+                if (!empStats[row.nombre]) {
+                    empStats[row.nombre] = { totalHoras: 0, pendingEntrada: null };
+                }
+
+                const time = new Date(row.fecha_hora).getTime();
+
+                if (row.tipo === 'entrada') {
+                    // Si ya habia una entrada sin salida, la sobreescribimos (asumiendo que se olvidó fichar salida)
+                    empStats[row.nombre].pendingEntrada = time;
+                } else if (row.tipo === 'salida') {
+                    if (empStats[row.nombre].pendingEntrada) {
+                        const diffMs = time - empStats[row.nombre].pendingEntrada;
+                        const diffHoras = diffMs / (1000 * 60 * 60);
+                        empStats[row.nombre].totalHoras += diffHoras;
+                        empStats[row.nombre].pendingEntrada = null; // Cerrado
+                    }
+                }
+            });
+
+            const resumenRows = Object.keys(empStats).map(nombre => {
+                return {
+                    "Empleado": nombre,
+                    "Total Horas Trabajadas": empStats[nombre].totalHoras.toFixed(2)
+                };
+            });
+
+            const wsResumen = XLSX.utils.json_to_sheet(resumenRows);
+
+            // ==========================================
+            // CEAR WORKBOOK Y EXPORTAR
+            // ==========================================
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, wsHistorial, "Historial Fichajes");
+            XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen Horas");
+
+            const fileName = `Reporte_Ficheo_${desdeStr}_al_${hastaStr}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+            
+            cerrarModalExportar();
+        }
 
         function openModal(fichajeId, lat, lng, name, type) {
             document.getElementById('modal').style.display = 'flex';
