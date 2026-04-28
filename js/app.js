@@ -204,6 +204,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Capture and Save
     ui.capture.addEventListener('click', async () => {
+        if (ui.capture.disabled) return;
+        
+        ui.capture.disabled = true;
+        const originalText = ui.capture.textContent;
+        ui.capture.textContent = 'Procesando...';
+
         // 1. Capture Photo (comprimida para ahorrar espacio en DB)
         const MAX_WIDTH = 320;
         const scale = Math.min(1, MAX_WIDTH / ui.video.videoWidth);
@@ -241,13 +247,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Actualizar estado de los botones (deshabilita el que se acaba de usar)
                     await checkStatusAndToggleButtons();
                 } else {
-                    showStatus('Error al guardar registro', 'error');
+                    showStatus(data.error || 'Error al guardar registro', 'error');
                 }
             } catch (err) {
                 showStatus('Error de red', 'error');
+            } finally {
+                ui.capture.disabled = false;
+                ui.capture.textContent = originalText;
             }
         }, (err) => {
             showStatus('Error GPS: Por favor permite la ubicación', 'error');
+            ui.capture.disabled = false;
+            ui.capture.textContent = originalText;
         }, { enableHighAccuracy: true });
     });
 

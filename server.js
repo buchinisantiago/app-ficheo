@@ -89,6 +89,24 @@ app.post('/api/save_fichaje', async (req, res) => {
     }
 
     try {
+        // Validación de entradas y salidas duplicadas el mismo día
+        if (tipo === 'entrada' || tipo === 'salida') {
+            const resultStatus = await pool.query(`
+                SELECT tipo FROM fichajes 
+                WHERE empleado_id = $1 AND tipo IN ('entrada', 'salida')
+                AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
+                ORDER BY fecha_hora DESC LIMIT 1
+            `, [empleado_id]);
+            
+            const lastAction = resultStatus.rows.length > 0 ? resultStatus.rows[0].tipo : null;
+            if (tipo === 'entrada' && lastAction === 'entrada') {
+                return res.json({ success: false, error: 'Ya has registrado una entrada.' });
+            }
+            if (tipo === 'salida' && lastAction !== 'entrada') {
+                return res.json({ success: false, error: 'No puedes salir sin haber entrado primero.' });
+            }
+        }
+
         // Guardar foto directamente como base64 en la DB
         await pool.query(
             'INSERT INTO fichajes (empleado_id, tipo, foto_path, latitud, longitud) VALUES ($1, $2, $3, $4, $5)',
@@ -524,56 +542,49 @@ app.get('/admin', (req, res) => {
 });
 
 // ============================================
-// AUTO-CHECKOUT A LAS 23:59 (hora Arg)
+// AUTO-CHECKOUT (Retroactivo para evitar fallos por Servidor Inactivo)
 // ============================================
-let lastAutoCheckoutDate = null;
-
-setInterval(async () => {
-    const now = new Date();
-    const argTimeStr = now.toLocaleString("en-US", {timeZone: "America/Argentina/Buenos_Aires"});
-    const argTime = new Date(argTimeStr);
-    
-    // Ejecutar alrededor de las 23:58 o 23:59
-    if (argTime.getHours() === 23 && argTime.getMinutes() >= 55) {
-        const currentDateStr = argTime.toISOString().split('T')[0];
-        
-        // Evitar que corra múltiples veces el mismo día
-        if (lastAutoCheckoutDate !== currentDateStr) {
-            lastAutoCheckoutDate = currentDateStr;
-            
-            try {
-                // Formatear la hora de salida a las 16:00 del día en curso
-                const tzDateStr = argTime.getFullYear() + "-" + 
-                                  String(argTime.getMonth()+1).padStart(2,'0') + "-" + 
-                                  String(argTime.getDate()).padStart(2,'0');
-                const targetExitTime = `${tzDateStr} 16:00:00`;
-                
-                // La query busca todos los empleados que trabajaron hoy. 
-                // Se queda con la última accion. Si esa última accion es 'entrada'
-                // les inserta una 'salida' a las 16:00 hrs.
-                const query = `
-                    WITH LastActions AS (
-                        SELECT DISTINCT ON (empleado_id) empleado_id, tipo
-                        FROM fichajes
-                        WHERE DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = CURRENT_DATE
-                        ORDER BY empleado_id, fecha_hora DESC
-                    )
-                    INSERT INTO fichajes (empleado_id, tipo, fecha_hora, foto_path)
-                    SELECT empleado_id, 'salida', $1, '🤖 Cierre Automático (16:00)'
-                    FROM LastActions
-                    WHERE tipo = 'entrada'
-                `;
-                
-                const result = await pool.query(query, [targetExitTime]);
-                if (result.rowCount > 0) {
-                    console.log(`[Auto-Checkout] Procesadas ${result.rowCount} salidas automáticas a las 16:00 para el día ${tzDateStr}.`);
-                }
-            } catch (err) {
-                console.error("[Auto-Checkout] Error:", err.message);
-            }
+async function runAutoCheckout() {
+    try {
+        // Esta query busca el último fichaje por día de cada empleado
+        // para cualquier día ANTERIOR a hoy. Si la última acción fue 'entrada',
+        // le inserta automáticamente una 'salida' a las 16:00 de ese día.
+        const queryDB = `
+            WITH LastActions AS (
+                SELECT DISTINCT ON (empleado_id, DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires')) 
+                    empleado_id, 
+                    tipo, 
+                    DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') as missing_date
+                FROM fichajes
+                WHERE tipo IN ('entrada', 'salida') 
+                AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
+                ORDER BY empleado_id, DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires'), fecha_hora DESC
+            )
+            INSERT INTO fichajes (empleado_id, tipo, fecha_hora, foto_path)
+            SELECT 
+                empleado_id, 
+                'salida', 
+                (missing_date + time '16:00:00') AT TIME ZONE 'America/Argentina/Buenos_Aires', 
+                '🤖 Cierre Automático (16:00)'
+            FROM LastActions
+            WHERE tipo = 'entrada';
+        `;
+        const result = await pool.query(queryDB);
+        if (result.rowCount > 0) {
+            console.log(`[Auto-Checkout] Procesadas ${result.rowCount} salidas automáticas retroactivas.`);
         }
+    } catch (err) {
+        console.error("[Auto-Checkout] Error:", err.message);
     }
-}, 60000); // Checkear cada minuto
+}
+
+// Ejecutar apenas inicia el servidor (cuando Render lo despierta)
+runAutoCheckout();
+
+// Revisar cada 15 minutos en vez de solo a las 23:59
+setInterval(() => {
+    runAutoCheckout();
+}, 15 * 60 * 1000);
 
 // Iniciar servidor
 app.listen(PORT, () => {

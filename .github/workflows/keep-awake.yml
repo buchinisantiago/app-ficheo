@@ -1,0 +1,15 @@
+name: Keep Supabase Awake
+
+on:
+  schedule:
+    # Se ejecuta todos los días a las 12:00 UTC (9:00 AM en Argentina)
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  ping-server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API Ficheo
+        # Llama a un endpoint público para generar una lectura en Supabase
+        run: curl -s "https://app-ficheo.onrender.com/api/get_employees" > /dev/null
