@@ -506,6 +506,31 @@ app.get('/api/cleanup', async (req, res) => {
     }
 });
 
+// --- ADMIN: CLEANUP AUTO-CHECKOUT DUPES ---
+app.post('/api/admin_cleanup_dupes', async (req, res) => {
+    try {
+        const query = `
+            WITH duplicates AS (
+                SELECT id,
+                    ROW_NUMBER() OVER(
+                        PARTITION BY empleado_id, DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') 
+                        ORDER BY id ASC
+                    ) as row_num
+                FROM fichajes
+                WHERE foto_path LIKE '%🤖 Cierre Automático%'
+            )
+            DELETE FROM fichajes
+            WHERE id IN (
+                SELECT id FROM duplicates WHERE row_num > 1
+            );
+        `;
+        const result = await pool.query(query);
+        res.json({ success: true, deleted: result.rowCount });
+    } catch (err) {
+        res.json({ success: false, error: err.message });
+    }
+});
+
 // --- SERVIR FOTOS BASE64 como imagen (para el admin panel) ---
 app.get('/api/foto/:fichajeId', async (req, res) => {
     try {

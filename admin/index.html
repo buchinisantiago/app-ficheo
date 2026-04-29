@@ -264,6 +264,9 @@
                 <button onclick="abrirModalFichajeManual()" style="padding: 8px 16px; border: none; border-radius: 8px; background: var(--primary); color: white; cursor: pointer; font-weight: 600;">
                     ➕ Registrar Fichaje Manual
                 </button>
+                <button onclick="limpiarDuplicados()" style="padding: 8px 16px; border: none; border-radius: 8px; background: #dc2626; color: white; cursor: pointer; font-weight: 600;">
+                    🧹 Limpiar Duplicados
+                </button>
                 <button onclick="abrirModalExportar()" id="btn-export"
                     style="padding: 8px 16px; border: none; border-radius: 8px; background: #059669; color: white; cursor: pointer; font-weight: 600;">
                     📊 Exportar Reporte (Excel)
@@ -923,6 +926,22 @@
                 loadHistory(); // Reload table
             } else {
                 alert("Error al actualizar: " + data.error);
+            }
+        }
+
+        async function limpiarDuplicados() {
+            if (!confirm("¿Estás seguro de que quieres eliminar TODOS los cierres automáticos duplicados? Esta acción no se puede deshacer.")) return;
+            try {
+                const res = await fetch('../api/admin_cleanup_dupes', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`¡Listo! Se eliminaron ${data.deleted} registros duplicados.`);
+                    loadHistory();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (err) {
+                alert("Error de conexión al limpiar duplicados.");
             }
         }
 
