@@ -332,7 +332,7 @@ app.post('/api/admin_add_fichaje', async (req, res) => {
         const fechaHoraStr = `${fecha} ${hora}:00`;
         const foto_path = '✍️ Manual';
         await pool.query(
-            'INSERT INTO fichajes (empleado_id, tipo, fecha_hora, foto_path) VALUES ($1, $2, $3, $4)',
+            "INSERT INTO fichajes (empleado_id, tipo, fecha_hora, foto_path) VALUES ($1, $2, CAST($3 AS timestamp) AT TIME ZONE 'America/Argentina/Buenos_Aires', $4)",
             [empleado_id, tipo, fechaHoraStr, foto_path]
         );
         res.json({ success: true });
@@ -355,7 +355,7 @@ app.post('/api/admin_update_fichaje', async (req, res) => {
         if (dtStr.length === 16) dtStr += ':00'; // add seconds if missing
 
         await pool.query(
-            'UPDATE fichajes SET tipo = $1, fecha_hora = $2 WHERE id = $3',
+            "UPDATE fichajes SET tipo = $1, fecha_hora = CAST($2 AS timestamp) AT TIME ZONE 'America/Argentina/Buenos_Aires' WHERE id = $3",
             [tipo, dtStr, id]
         );
         res.json({ success: true });
@@ -548,12 +548,13 @@ async function runAutoCheckout() {
     try {
         // Esta query busca el último fichaje por día de cada empleado
         // para cualquier día ANTERIOR a hoy. Si la última acción fue 'entrada',
-        // le inserta automáticamente una 'salida' a las 16:00 de ese día.
+        // le inserta automáticamente una 'salida' a las 16:00 de ese día (o 1 minuto después de la entrada si esta fue posterior a las 16:00).
         const queryDB = `
             WITH LastActions AS (
                 SELECT DISTINCT ON (empleado_id, DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires')) 
                     empleado_id, 
                     tipo, 
+                    fecha_hora as last_fecha,
                     DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') as missing_date
                 FROM fichajes
                 WHERE tipo IN ('entrada', 'salida') 
@@ -564,7 +565,10 @@ async function runAutoCheckout() {
             SELECT 
                 empleado_id, 
                 'salida', 
-                (missing_date + time '16:00:00') AT TIME ZONE 'America/Argentina/Buenos_Aires', 
+                GREATEST(
+                    last_fecha + interval '1 minute',
+                    (missing_date + time '16:00:00') AT TIME ZONE 'America/Argentina/Buenos_Aires'
+                ), 
                 '🤖 Cierre Automático (16:00)'
             FROM LastActions
             WHERE tipo = 'entrada';

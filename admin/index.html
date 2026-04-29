@@ -520,8 +520,11 @@
                     mapButton = '<span style="color:#94a3b8; font-size:0.8rem;">No Data</span>';
                 } else {
                     // foto_path es base64 data URI directo desde la DB
-                    if (row.foto_path === 'admin_manual_entry') {
+                    if (row.foto_path === 'admin_manual_entry' || row.foto_path === '✍️ Manual') {
                         photoHtml = '<span style="font-size:0.8rem; color:#1a5ba5; font-weight:bold;">✍️ Manual</span>';
+                        mapButton = '<span style="color:#94a3b8; font-size:0.8rem;">Sin Mapa</span>';
+                    } else if (row.foto_path && row.foto_path.startsWith('🤖 Cierre')) {
+                        photoHtml = `<span style="font-size:0.8rem; color:#475569; font-weight:bold;">${row.foto_path}</span>`;
                         mapButton = '<span style="color:#94a3b8; font-size:0.8rem;">Sin Mapa</span>';
                     } else {
                         const fotoSrc = row.foto_path && row.foto_path.startsWith('data:') ? row.foto_path : `../api/foto/${row.id}`;
@@ -534,7 +537,7 @@
                 tr.innerHTML = `
                     <td><strong>${row.nombre}</strong></td>
                     <td><span class="badge badge-${typeClass}">${row.tipo.toUpperCase().replace('_', ' ')}</span></td>
-                    <td>${new Date(row.fecha_hora).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</td>
+                    <td>${new Date(row.fecha_hora).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour12: false })}</td>
                     <td>${mapButton}</td>
                     <td>${photoHtml}</td>
                     <td style="white-space: nowrap;">
@@ -869,10 +872,23 @@
             document.getElementById('edit-id').value = id;
             document.getElementById('edit-tipo').value = tipoActual;
             
-            // Format fechaHoraActual for datetime-local input (YYYY-MM-DDThh:mm)
-            const localDate = new Date(fechaHoraActual);
-            const pad = (n) => n.toString().padStart(2, '0');
-            const formatted = `${localDate.getFullYear()}-${pad(localDate.getMonth()+1)}-${pad(localDate.getDate())}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}`;
+            // Format fechaHoraActual to display exactly the ARGENTINA time
+            const parts = new Intl.DateTimeFormat('en-GB', {
+                timeZone: 'America/Argentina/Buenos_Aires',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: false
+            }).formatToParts(new Date(fechaHoraActual));
+            
+            let y, m, d, h, min;
+            parts.forEach(p => {
+                if(p.type === 'year') y = p.value;
+                if(p.type === 'month') m = p.value;
+                if(p.type === 'day') d = p.value;
+                if(p.type === 'hour') h = p.value;
+                if(p.type === 'minute') min = p.value;
+            });
+            if (h === '24') h = '00';
+            const formatted = `${y}-${m}-${d}T${h}:${min}`;
             
             document.getElementById('edit-fechahora').value = formatted;
         }
@@ -890,10 +906,9 @@
                 return alert("Faltan datos");
             }
             
-            // Convert to PostgreSQL string
-            const newDate = new Date(fechahora_local);
-            const pad = (n) => n.toString().padStart(2, '0');
-            const pgDateStr = `${newDate.getFullYear()}-${pad(newDate.getMonth()+1)}-${pad(newDate.getDate())} ${pad(newDate.getHours())}:${pad(newDate.getMinutes())}:00`;
+            // Convert to PostgreSQL string format (YYYY-MM-DD HH:MM:00)
+            let pgDateStr = fechahora_local.replace('T', ' ');
+            if (pgDateStr.length === 16) pgDateStr += ':00';
 
             const res = await fetch('../api/admin_update_fichaje', {
                 method: 'POST',
