@@ -616,7 +616,7 @@ async function runAutoCheckout() {
                     last_fecha + interval '1 minute',
                     (missing_date + time '16:00:00') AT TIME ZONE 'America/Argentina/Buenos_Aires'
                 ), 
-                '🤖 Cierre Automático (16:00)'
+                '🤖 Cierre Automático (16:00) | Ejecutado: ' || TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI')
             FROM LastActions
             WHERE tipo = 'entrada';
         `;
