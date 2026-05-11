@@ -571,9 +571,31 @@ app.get('/admin', (req, res) => {
 // ============================================
 async function runAutoCheckout() {
     try {
+        // Verificar la hora actual en Argentina antes de proceder.
+        // Solo aplicamos auto-checkout a días ANTERIORES a hoy en Argentina.
+        // Para mayor seguridad, también verificamos que ya pasaron al menos 2 horas
+        // del nuevo día en Argentina (es decir, son las 02:00+ AM) para evitar
+        // problemas en el cambio de medianoche.
+        const nowCheck = await pool.query(`
+            SELECT 
+                (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date AS hoy_arg,
+                EXTRACT(HOUR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')) AS hora_arg
+        `);
+        const { hoy_arg, hora_arg } = nowCheck.rows[0];
+        
+        // Guard: Solo ejecutar si ya son las 02:00 AM o más en Argentina.
+        // Esto evita falsos positivos en el período 00:00-01:59 donde podría
+        // haber confusión entre el día de ayer y hoy en diferentes timezones.
+        if (parseInt(hora_arg) < 2) {
+            console.log(`[Auto-Checkout] Son las ${hora_arg}:xx AM en Argentina. Esperando a las 02:00 AM para evitar errores de fecha.`);
+            return;
+        }
+
         // Esta query busca el último fichaje por día de cada empleado
-        // para cualquier día ANTERIOR a hoy. Si la última acción fue 'entrada',
-        // le inserta automáticamente una 'salida' a las 16:00 de ese día (o 1 minuto después de la entrada si esta fue posterior a las 16:00).
+        // para cualquier día ESTRICTAMENTE ANTERIOR a hoy en Argentina.
+        // Si la última acción fue 'entrada', le inserta automáticamente
+        // una 'salida' a las 16:00 de ese día (o 1 minuto después de la
+        // entrada si esta fue posterior a las 16:00).
         const queryDB = `
             WITH LastActions AS (
                 SELECT DISTINCT ON (empleado_id, DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires')) 
@@ -583,7 +605,7 @@ async function runAutoCheckout() {
                     DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') as missing_date
                 FROM fichajes
                 WHERE tipo IN ('entrada', 'salida') 
-                AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
+                AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') < $1
                 ORDER BY empleado_id, DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires'), fecha_hora DESC
             )
             INSERT INTO fichajes (empleado_id, tipo, fecha_hora, foto_path)
@@ -598,9 +620,9 @@ async function runAutoCheckout() {
             FROM LastActions
             WHERE tipo = 'entrada';
         `;
-        const result = await pool.query(queryDB);
+        const result = await pool.query(queryDB, [hoy_arg]);
         if (result.rowCount > 0) {
-            console.log(`[Auto-Checkout] Procesadas ${result.rowCount} salidas automáticas retroactivas.`);
+            console.log(`[Auto-Checkout] Procesadas ${result.rowCount} salidas automáticas retroactivas para días anteriores a ${hoy_arg}.`);
         }
     } catch (err) {
         console.error("[Auto-Checkout] Error:", err.message);
@@ -610,10 +632,10 @@ async function runAutoCheckout() {
 // Ejecutar apenas inicia el servidor (cuando Render lo despierta)
 runAutoCheckout();
 
-// Revisar cada 15 minutos en vez de solo a las 23:59
+// Revisar cada hora (era cada 15 min, no es necesario más frecuencia para fechas pasadas)
 setInterval(() => {
     runAutoCheckout();
-}, 15 * 60 * 1000);
+}, 60 * 60 * 1000);
 
 // Iniciar servidor
 app.listen(PORT, () => {
