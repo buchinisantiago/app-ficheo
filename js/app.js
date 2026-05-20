@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update Clock
     setInterval(() => {
-        ui.clock.textContent = new Date().toLocaleTimeString();
+        ui.clock.textContent = new Date().toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour12: false });
     }, 1000);
 
     // Initial Fetch: Employees

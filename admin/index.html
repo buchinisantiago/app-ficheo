@@ -622,13 +622,15 @@
         function abrirModalExportar() {
             document.getElementById('modal-export').style.display = 'flex';
             
-            // Sugerir mes actual por defecto
-            const date = new Date();
-            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-            const pad = (n) => n.toString().padStart(2, '0');
+            // Sugerir mes actual por defecto (siempre en hora Argentina)
+            const nowArgStr = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Argentina/Buenos_Aires',
+                year: 'numeric', month: '2-digit', day: '2-digit'
+            }).format(new Date()); // formato YYYY-MM-DD
+            const [argY, argM, argD] = nowArgStr.split('-');
             
-            document.getElementById('export-desde').value = `${firstDay.getFullYear()}-${pad(firstDay.getMonth()+1)}-01`;
-            document.getElementById('export-hasta').value = `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+            document.getElementById('export-desde').value = `${argY}-${argM}-01`;
+            document.getElementById('export-hasta').value = nowArgStr;
         }
 
         function cerrarModalExportar() {

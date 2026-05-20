@@ -167,7 +167,7 @@ app.get('/api/get_active_employees', async (req, res) => {
             SELECT DISTINCT ON (f.empleado_id) f.empleado_id, e.nombre, f.fecha_hora as last_action, f.tipo
             FROM fichajes f
             JOIN empleados e ON f.empleado_id = e.id
-            WHERE DATE(f.fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = CURRENT_DATE
+            WHERE DATE(f.fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
             AND f.tipo IN ('entrada', 'salida')
             ORDER BY f.empleado_id, f.fecha_hora DESC
         `);
@@ -197,7 +197,7 @@ app.post('/api/get_employee_status', async (req, res) => {
         const result = await pool.query(`
             SELECT tipo FROM fichajes 
             WHERE empleado_id = $1 AND tipo IN ('entrada', 'salida')
-            AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = CURRENT_DATE
+            AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
             ORDER BY fecha_hora DESC LIMIT 1
         `, [empleado_id]);
         
@@ -245,30 +245,35 @@ app.post('/api/check_tracking_requests', async (req, res) => {
 
 // --- CHECK ALERTS (motor de alertas de fichaje) ---
 app.get('/api/check_alerts', async (req, res) => {
-    // Verificar día de semana (Lun-Vie)
-    const now = new Date();
-    const day = now.getDay(); // 0=Dom, 6=Sab
-    if (day === 0 || day === 6) {
-        return res.json({ success: true, alertas_procesadas: 0, msg: 'Fin de semana ignorado' });
-    }
-
-    const hoy = now.toISOString().split('T')[0];
-    // Hora actual en formato HH:MM (Argentina)
-    const ahora = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Argentina/Buenos_Aires' });
-
-    let alertasProcesadas = 0;
-
     try {
+        // TODA la lógica de fecha/hora se obtiene de PostgreSQL en timezone Argentina
+        // para evitar discrepancias con el UTC del servidor Node.js
+        const tzResult = await pool.query(`
+            SELECT 
+                EXTRACT(DOW FROM CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires') AS dow,
+                (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date AS hoy,
+                TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires', 'HH24:MI') AS ahora
+        `);
+        const { dow, hoy, ahora } = tzResult.rows[0];
+        const day = parseInt(dow); // 0=Dom, 6=Sab
+
+        // Verificar día de semana (Lun-Vie)
+        if (day === 0 || day === 6) {
+            return res.json({ success: true, alertas_procesadas: 0, msg: 'Fin de semana ignorado' });
+        }
+
+        let alertasProcesadas = 0;
+
         // Obtener técnicos
         const tecnicos = await pool.query(
             "SELECT id, nombre, hora_entrada_esperada, hora_salida_esperada FROM empleados WHERE rol != 'admin'"
         );
 
         for (const t of tecnicos.rows) {
-            // Fichajes de hoy
+            // Fichajes de hoy (usando fecha Argentina como parámetro)
             const fichajes = await pool.query(
-                "SELECT tipo FROM fichajes WHERE empleado_id = $1 AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = CURRENT_DATE",
-                [t.id]
+                "SELECT tipo FROM fichajes WHERE empleado_id = $1 AND DATE(fecha_hora AT TIME ZONE 'America/Argentina/Buenos_Aires') = $2",
+                [t.id, hoy]
             );
             const tiposHoy = fichajes.rows.map(f => f.tipo);
             const tieneEntrada = tiposHoy.includes('entrada');
@@ -478,7 +483,7 @@ app.get('/api/admin_get_alert_logs', async (req, res) => {
             SELECT ra.id, e.nombre, ra.tipo_alerta, ra.cantidad_enviada 
             FROM registro_alertas ra
             JOIN empleados e ON ra.empleado_id = e.id
-            WHERE ra.fecha = CURRENT_DATE
+            WHERE ra.fecha = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date
             ORDER BY ra.id DESC
         `);
         res.json(result.rows);
@@ -494,7 +499,7 @@ app.get('/api/cleanup', async (req, res) => {
             "DELETE FROM fichajes WHERE fecha_hora < NOW() - INTERVAL '30 days'"
         );
         const alertResult = await pool.query(
-            "DELETE FROM registro_alertas WHERE fecha < CURRENT_DATE - INTERVAL '30 days'"
+            "DELETE FROM registro_alertas WHERE fecha < (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date - INTERVAL '30 days'"
         );
         res.json({
             success: true,
@@ -612,11 +617,16 @@ async function runAutoCheckout() {
             SELECT 
                 empleado_id, 
                 'salida', 
-                GREATEST(
-                    last_fecha + interval '1 minute',
-                    (missing_date + time '16:00:00') AT TIME ZONE 'America/Argentina/Buenos_Aires'
-                ), 
-                '🤖 Cierre Automático (16:00) | Ejecutado: ' || TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI')
+                CASE 
+                    WHEN (last_fecha AT TIME ZONE 'America/Argentina/Buenos_Aires')::time < time '16:00:00'
+                    THEN (missing_date + time '16:00:00') AT TIME ZONE 'America/Argentina/Buenos_Aires'
+                    ELSE (missing_date + time '23:59:00') AT TIME ZONE 'America/Argentina/Buenos_Aires'
+                END,
+                CASE 
+                    WHEN (last_fecha AT TIME ZONE 'America/Argentina/Buenos_Aires')::time < time '16:00:00'
+                    THEN '🤖 Cierre Automático (16:00) | Ejecutado: ' || TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI')
+                    ELSE '🤖 Cierre Automático (23:59) | Ejecutado: ' || TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires', 'DD/MM/YYYY HH24:MI')
+                END
             FROM LastActions
             WHERE tipo = 'entrada';
         `;
