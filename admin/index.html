@@ -501,10 +501,13 @@
             body.innerHTML = '';
 
             let todayEntries = 0;
-            const todayStr = new Date().toISOString().split('T')[0];
+            // Calcular "hoy" siempre en horario de Argentina (UTC-3), no del navegador
+            const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date());
 
             currentData.forEach(row => {
-                const isToday = row.fecha_hora.startsWith(todayStr);
+                // Comparar la fecha del registro también en horario Argentina
+                const rowDateArg = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date(row.fecha_hora));
+                const isToday = rowDateArg === todayStr;
                 if (isToday && row.tipo === 'entrada') todayEntries++;
 
                 let typeClass = row.tipo;
@@ -640,8 +643,9 @@
 
             if (!desdeStr || !hastaStr) return alert("Por favor selecciona ambas fechas.");
 
-            const dateDesde = new Date(desdeStr + "T00:00:00");
-            const dateHasta = new Date(hastaStr + "T23:59:59");
+            // Interpretar las fechas del filtro en hora Argentina (UTC-3 = +0300 al revés)
+            const dateDesde = new Date(desdeStr + "T00:00:00-03:00");
+            const dateHasta = new Date(hastaStr + "T23:59:59-03:00");
 
             // 1. Filtrar Data por rango de fechas
             const dataFiltrada = currentData.filter(r => {
@@ -795,17 +799,18 @@
             document.getElementById('modal-manual').style.display = 'flex';
             
             // Set today's date and time by default
-            const now = new Date();
-            // Format to local date avoiding timezone shift
-            const dateStr = [
-                now.getFullYear(),
-                String(now.getMonth() + 1).padStart(2, '0'),
-                String(now.getDate()).padStart(2, '0')
-            ].join('-');
+            // Usar siempre hora de Argentina (UTC-3) para el modal manual
+            const nowArg = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/Argentina/Buenos_Aires',
+                year: 'numeric', month: '2-digit', day: '2-digit'
+            }).format(new Date());
+            const timeArg = new Intl.DateTimeFormat('es-AR', {
+                timeZone: 'America/Argentina/Buenos_Aires',
+                hour: '2-digit', minute: '2-digit', hour12: false
+            }).format(new Date());
             
-            const timeStr = now.toTimeString().split(' ')[0].substring(0, 5); // HH:MM
-            document.getElementById('manual-fecha').value = dateStr;
-            document.getElementById('manual-hora').value = timeStr;
+            document.getElementById('manual-fecha').value = nowArg;
+            document.getElementById('manual-hora').value = timeArg;
 
             // Load employees if empty
             const empSelect = document.getElementById('manual-emp');
