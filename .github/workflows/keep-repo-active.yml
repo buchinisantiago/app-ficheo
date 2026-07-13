@@ -1,0 +1,28 @@
+name: Keep Repo Active
+
+on:
+  schedule:
+    # Run once a week on Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  keep-active:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Update last activity file
+        run: |
+          date -u > .github/last-activity.txt
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: actualizar timestamp para mantener actividad del repo"
+          file_pattern: '.github/last-activity.txt'
+          commit_user_name: "GitHub Actions"
+          commit_user_email: "actions@github.com"
